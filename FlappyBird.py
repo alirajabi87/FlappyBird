@@ -1,6 +1,7 @@
 import pygame, neat, os, random
 import numpy as np
 import pickle, time
+
 pygame.font.init()
 
 WIN_WIDTH = 550
@@ -102,8 +103,7 @@ class Pipe:
         self.height = random.randrange(50, 450)
         self.top = self.height - self.PIPE_TOP.get_height()
 
-        self.bottom = self.height+self.GAP  # (0, 0) is in top left corner
-
+        self.bottom = self.height + self.GAP  # (0, 0) is in top left corner
 
     def move(self):
         self.x = self.x - self.VEL
@@ -113,9 +113,9 @@ class Pipe:
         win.blit(self.PIPE_BOTTOM, (self.x, self.bottom))
 
     def collide(self, bird):
-        bird_mask = bird.get_mask() # mask of bird from bird class
+        bird_mask = bird.get_mask()  # mask of bird from bird class
         top_mask = pygame.mask.from_surface(self.PIPE_TOP)  # mask of flipped pipe image
-        bottom_mask = pygame.mask.from_surface(self.PIPE_BOTTOM) # mask of pipe image
+        bottom_mask = pygame.mask.from_surface(self.PIPE_BOTTOM)  # mask of pipe image
 
         # offset (how far two mask are far from each other
         top_offset = (self.x - bird.x, self.top - round(bird.y))
@@ -147,8 +147,8 @@ class Base:
         if self.x1 + self.WIDTH < 0:
             self.x1 = self.x2 + self.WIDTH
 
-        if self.x2+self.WIDTH < 0:
-            self.x2 = self.x1+self.WIDTH
+        if self.x2 + self.WIDTH < 0:
+            self.x2 = self.x1 + self.WIDTH
 
     def draw(self, win):
         win.blit(self.IMG, (self.x1, self.y))
@@ -156,17 +156,16 @@ class Base:
 
 
 def draw_Window(win, birds, pipes, base, score, gen):
-    win.blit(BG_IMAGE, (0, 0))              # blit means draw in pygame
+    win.blit(BG_IMAGE, (0, 0))  # blit means draw in pygame
 
     for pipe in pipes:
         pipe.draw(win)
 
-    text = STAT_FONT.render("Score: "+ str(score), 1, (255, 255, 255))
+    text = STAT_FONT.render(f"Score:  {str(score)}", 1, (255, 255, 255))
     win.blit(text, (WIN_WIDTH - 10 - text.get_width(), 10))
 
-    text = STAT_FONT.render("Gen: " + str(gen), 1, (255, 255, 255))
+    text = STAT_FONT.render(f"Gen: {str(gen)}", 1, (255, 255, 255))
     win.blit(text, (10, 10))
-
 
     base.draw(win)
     for bird in birds:
@@ -180,6 +179,7 @@ def fitness_function(gnomes, config):
     nets = []
     ge = []
     birds = []
+
     for __, g in gnomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
@@ -187,13 +187,11 @@ def fitness_function(gnomes, config):
         g.fitness = 0
         ge.append(g)
 
-
     base = Base(730)
     pipes = [Pipe(600)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
     score = 0
-
 
     run = True
     while run:
@@ -215,7 +213,8 @@ def fitness_function(gnomes, config):
             bird.move()
             ge[x].fitness += 0.1
 
-            output = nets[x].activate((bird.y, abs(bird.y-pipes[pipe_ind].height), abs(bird.y-pipes[pipe_ind].bottom)))
+            output = nets[x].activate(
+                (bird.y, abs(bird.y - pipes[pipe_ind].height), abs(bird.y - pipes[pipe_ind].bottom)))
 
             if output[0] > 0.5:
                 bird.jump()
@@ -253,17 +252,16 @@ def fitness_function(gnomes, config):
                 birds.pop(x)
                 nets.pop(x)
                 ge.pop(x)
-        if score > 50:
+        if score > 65:
             break
         draw_Window(win, birds, pipes, base, score, GEN)
 
 
-
-
-def run(config_path):
+def run(config_path, No_Generation=20):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                         neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
     # population
+
     pop = neat.Population(config)
 
     # Status (output)
@@ -271,7 +269,15 @@ def run(config_path):
     stats = neat.StatisticsReporter()
     pop.add_reporter(stats)
 
-    winner = pop.run(fitness_function, 50)
+    if os.path.isfile("Model.pkl"):
+        with open("Model.pkl", "rb") as fl:
+            gnome = pickle.load(fl)
+            gnome = [(1, gnome)]
+        fitness_function(gnome, config)
+    else:
+        winner = pop.run(fitness_function, No_Generation)
+        with open("Model.pkl", "wb") as fl:
+            pickle.dump(winner, fl)
 
 
 if __name__ == '__main__':
